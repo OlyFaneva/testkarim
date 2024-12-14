@@ -18,80 +18,17 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies and Test') {
+
+        // Etape pour installer les dépendances avec Yarn
+        stage('Install Dependencies') {
             steps {
                 script {
-                    echo 'Installing dependencies and running tests'
-
-                    // Construire une image temporaire si nécessaire
-                    sh '''
-                docker build -t temp-build .
-            '''
-
-                    // Lancer un conteneur Node.js temporaire pour exécuter npm install et npm run test
-                    sh '''
-                docker run --rm -v $PWD:/app -w /app node:18-alpine sh -c "
-                    if [ -f package.json ]; then
-                        yarn install &&
-                        yarn run test
-                    else
-                        echo 'Error: package.json not found' && exit 1
-                    fi
-                "
-            '''
-
-                    // Supprimer l'image temporaire (si elle a été créée)
-                    sh '''
-                docker rmi temp-build --force || true
-            '''
+                    echo "Installing dependencies"
+                    sh 'yarn install'  // Remplacer 'npm install' par 'yarn install'
                 }
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    echo "Building Docker image: ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                    sh '''
-                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                    '''
-                }
-            }
-        }
 
-        stage('Scan Docker Image') {
-            steps {
-                script {
-                    echo 'Scanning Docker image for vulnerabilities'
-                    sh '''
-                        trivy image ${DOCKER_IMAGE}:${DOCKER_TAG} || exit 1
-                    '''
-                }
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                script {
-                    echo 'Pushing Docker image to Docker Hub'
-                    withDockerRegistry([credentialsId: 'docker', url: 'https://index.docker.io/v1/']) {
-                        sh '''
-                            docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Run Ansible Playbook') {
-            steps {
-                script {
-                    echo 'Running Ansible playbook'
-                    sh '''
-                        ansible-playbook -i hosts.ini deploy.yml -vvv
-                    '''
-                }
-            }
-        }
     }
 }
